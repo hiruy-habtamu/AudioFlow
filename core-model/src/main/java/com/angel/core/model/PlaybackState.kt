@@ -1,4 +1,4 @@
-package com.angel.model
+package com.angel.core.model
 
 enum class PlaybackState {
     IDLE,

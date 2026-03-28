@@ -1,7 +1,7 @@
-package com.angel.player
+package com.angel.core.player
 
-import com.angel.model.PlaybackState
-import com.angel.model.Track
+import com.angel.core.model.PlaybackState
+import com.angel.core.model.Track
 import kotlinx.coroutines.flow.StateFlow
 
 interface AudioPlayer {
