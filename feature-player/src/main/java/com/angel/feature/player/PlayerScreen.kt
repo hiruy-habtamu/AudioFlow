@@ -92,13 +92,10 @@ fun PlayerContent(
             }
 
             Spacer(modifier = Modifier.width(16.dp))
-
             Button(onClick = onPlayPause) {
                 Text(if (state.isPlaying) "⏸" else "▶️")
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
             Button(onClick = onNext) {
                 Text("⏭")
             }
