@@ -4,44 +4,29 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import com.angel.audioflow.ui.theme.AudioFlowTheme
+import com.angel.core.player.FakeAudioPlayer
+import com.angel.feature.player.PlayerScreen
+import com.angel.feature.player.PlayerViewModel
+import com.angel.core.model.Track
 
 class MainActivity : ComponentActivity() {
+    val tracks = listOf(
+        Track("1", "Song A", "Artist A", "", 5000),
+        Track("2", "Song B", "Artist B", "", 8000),
+        Track("3", "Song C", "Artist C", "", 6000)
+    )
+    val player = FakeAudioPlayer()
+    val viewModel = PlayerViewModel(player)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        viewModel.playSample(tracks)
         enableEdgeToEdge()
         setContent {
             AudioFlowTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                PlayerScreen(viewModel)
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    AudioFlowTheme {
-        Greeting("Android")
     }
 }
