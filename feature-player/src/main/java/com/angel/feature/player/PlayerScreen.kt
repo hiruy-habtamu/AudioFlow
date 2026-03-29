@@ -14,8 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.*
+import androidx.hilt.navigation.compose.hiltViewModel
+
 @Composable
-fun PlayerScreen(viewModel: PlayerViewModel) {
+fun PlayerScreen(
+    viewModel: PlayerViewModel = hiltViewModel()
+) {
     val state: PlayerUiState by viewModel.uiState.collectAsState()
 
     Column(
@@ -103,6 +107,7 @@ fun PlayerContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(text = "Position: ${state.position / 1000}s")
+
     }
 }
 

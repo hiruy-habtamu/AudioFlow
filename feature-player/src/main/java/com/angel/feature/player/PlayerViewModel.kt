@@ -5,14 +5,29 @@ import androidx.lifecycle.viewModelScope
 import com.angel.core.model.PlaybackState
 import com.angel.core.model.Track
 import com.angel.core.player.AudioPlayer
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import javax.inject.Inject
 
-class PlayerViewModel(
+@HiltViewModel
+class PlayerViewModel @Inject constructor(
     private val player: AudioPlayer
 ) : ViewModel() {
+
+    // Temporary track
+    init {
+        val tracks = listOf(
+            Track("1", "Song A", "Artist A", "", 5000),
+            Track("2", "Song B", "Artist B", "", 8000),
+            Track("3", "Song C", "Artist C", "", 6000)
+        )
+
+        player.setQueue(tracks)
+    }
+
     val uiState: StateFlow<PlayerUiState> = combine(
         player.currentTrack,
         player.playbackState,
