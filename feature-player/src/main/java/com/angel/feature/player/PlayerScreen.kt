@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.*
-
 @Composable
 fun PlayerScreen(viewModel: PlayerViewModel) {
     val state: PlayerUiState by viewModel.uiState.collectAsState()
@@ -60,30 +59,72 @@ fun PlayerScreen(viewModel: PlayerViewModel) {
     }
 }
 
-//
-//@Composable
-//fun PlayerScreenPreview(viewModel: PlayerViewModel) {
-//    val state: PlayerUiState by viewModel.uiState.collectAsState()
-//
-//    Column(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .padding(16.dp),
-//        verticalArrangement = Arrangement.Center,
-//        horizontalAlignment = Alignment.CenterHorizontally
-//    ) {
-//        Text(
-//            text = state.currentTrack?.title ?: "No Track",
-//            style = MaterialTheme.typography.headlineMedium
-//        )
-//
-//        Spacer(modifier = Modifier.height(32.dp))
-//
-//        Row(
-//            horizontalArrangement = Arrangement.Center,
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//
-//        }
-//    }
-//}
+@Composable
+fun PlayerContent(
+    state: PlayerUiState,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = state.currentTrack?.title ?: "No Track",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(onClick = onPrevious) {
+                Text("⏮")
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Button(onClick = onPlayPause) {
+                Text(if (state.isPlaying) "⏸" else "▶️")
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Button(onClick = onNext) {
+                Text("⏭")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(text = "Position: ${state.position / 1000}s")
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PlayerContentPreview() {
+    val fakeState = PlayerUiState(
+        currentTrack = com.angel.core.model.Track(
+            id = "1",
+            title = "Sample Song",
+            artist = "Sample Artist",
+            uri = "",
+            duration = 5000
+        ),
+        isPlaying = true,
+        position = 2000
+    )
+
+    PlayerContent(
+        state = fakeState,
+        onPlayPause = {},
+        onNext = {},
+        onPrevious = {}
+    )
+}
