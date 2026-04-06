@@ -28,6 +28,8 @@ android {
 dependencies {
     implementation(project(":core-model"))
     implementation(project(":core-player"))
+    implementation(project(":core-data"))
+
 
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.android)

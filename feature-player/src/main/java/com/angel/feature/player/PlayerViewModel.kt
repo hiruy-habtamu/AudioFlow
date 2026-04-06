@@ -2,41 +2,50 @@ package com.angel.feature.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.angel.core.data.repository.TrackRepository
 import com.angel.core.model.PlaybackState
 import com.angel.core.model.Track
 import com.angel.core.player.AudioPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    private val player: AudioPlayer
+    private val player: AudioPlayer,
+    private val repository: TrackRepository
 ) : ViewModel() {
 
-    // Temporary track
-    init {
-        val tracks = listOf(
-            Track("1", "Song A", "Artist A", "", 5000),
-            Track("2", "Song B", "Artist B", "", 8000),
-            Track("3", "Song C", "Artist C", "", 6000)
-        )
-
-        player.setQueue(tracks)
+    fun loadTracks() {
+        viewModelScope.launch {
+            repository.getTracks().collect { tracks ->
+                if (tracks.isNotEmpty()) {
+                    tracksFlow.value = tracks
+                    player.setQueue(tracks)
+                }
+            }
+        }
     }
+
+    private val tracksFlow = MutableStateFlow<List<Track>>(emptyList())
 
     val uiState: StateFlow<PlayerUiState> = combine(
         player.currentTrack,
         player.playbackState,
-        player.currentPosition
-    ) { track, state, position ->
+        player.currentPosition,
+        tracksFlow
+    ) { track, state, position, tracks ->
         PlayerUiState(
             currentTrack = track,
             isPlaying = state == PlaybackState.PLAYING,
-            position = position
+            position = position,
+            tracks = tracks
         )
     }.stateIn(
         scope = viewModelScope,

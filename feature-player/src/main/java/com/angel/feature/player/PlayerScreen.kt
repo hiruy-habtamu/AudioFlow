@@ -1,5 +1,9 @@
 package com.angel.feature.player
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,47 +24,42 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
-    val state: PlayerUiState by viewModel.uiState.collectAsState()
+    var hasPermission by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = state.currentTrack?.title ?: "No Track",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(onClick = { viewModel.previous() }) {
-                Text("⏮")
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Button(onClick = { viewModel.playPause() }) {
-                Text(if (state.isPlaying) "⏸" else "▶️")
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Button(onClick = { viewModel.next() }) {
-                Text("⏭")
-            }
-
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(text = "Position: ${state.position / 1000}s")
+    val permission = if (Build.VERSION.SDK_INT >= 33) {
+        Manifest.permission.READ_MEDIA_AUDIO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
     }
+
+    val launcher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            hasPermission = granted
+            if (granted) {
+                viewModel.loadTracks()
+            }
+        }
+
+    LaunchedEffect(Unit) {
+        launcher.launch(permission)
+    }
+
+    if (!hasPermission) {
+        Text("Permission required to load music")
+        return
+    }
+
+    val state by viewModel.uiState.collectAsState()
+
+    PlayerContent(
+        state = state,
+        onPlayPause = viewModel::playPause,
+        onNext = viewModel::next,
+        onPrevious = viewModel::previous,
+        onSeek = viewModel::seek
+    )
 }
 
 @Composable
@@ -68,7 +67,8 @@ fun PlayerContent(
     state: PlayerUiState,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
-    onPrevious: () -> Unit
+    onPrevious: () -> Unit,
+    onSeek: (Long) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -80,6 +80,10 @@ fun PlayerContent(
         Text(
             text = state.currentTrack?.title ?: "No Track",
             style = MaterialTheme.typography.headlineMedium
+        )
+        Text(
+            text = state.currentTrack?.artist ?: "Unknown",
+            style = MaterialTheme.typography.headlineSmall
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -103,7 +107,30 @@ fun PlayerContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text(text = "Position: ${state.position / 1000}s")
+
+        val duration = state.currentTrack?.duration ?: 0L
+        val position = state.position
+
+        Slider(
+            value = if (duration > 0) position.toFloat() / duration else 0f,
+            onValueChange = { progress ->
+                val newPosition = (progress * duration).toLong()
+                onSeek(newPosition)
+            },
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
+        )
+
+        Text(
+            text = "${position / 1000}s / ${duration / 1000}s"
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+
+//        Text("Tracks:")
+
+//        state.tracks.forEach { track ->
+//            Text("${track.title} - ${track.artist}")
+//        }
 
     }
 }
@@ -127,6 +154,7 @@ private fun PlayerContentPreview() {
         state = fakeState,
         onPlayPause = {},
         onNext = {},
-        onPrevious = {}
+        onPrevious = {},
+        onSeek = {}
     )
 }

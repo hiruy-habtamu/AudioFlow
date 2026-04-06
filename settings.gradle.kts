@@ -32,3 +32,4 @@ include(
 include(":core-model")
 include(":core-player")
 include(":feature-player")
+include(":core-data")
