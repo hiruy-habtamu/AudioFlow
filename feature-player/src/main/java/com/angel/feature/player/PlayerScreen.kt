@@ -1,14 +1,12 @@
 package com.angel.feature.player
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -24,32 +22,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
-    var hasPermission by remember { mutableStateOf(false) }
-
-    val permission = if (Build.VERSION.SDK_INT >= 33) {
-        Manifest.permission.READ_MEDIA_AUDIO
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
-    }
-
-    val launcher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            hasPermission = granted
-            if (granted) {
-                viewModel.loadTracks()
-            }
-        }
-
-    LaunchedEffect(Unit) {
-        launcher.launch(permission)
-    }
-
-    if (!hasPermission) {
-        Text("Permission required to load music")
-        return
-    }
 
     val state by viewModel.uiState.collectAsState()
 
@@ -118,6 +90,7 @@ fun PlayerContent(
                 onSeek(newPosition)
             },
             modifier = Modifier
+                .fillMaxWidth(0.67f)
                 .padding(horizontal = 10.dp)
         )
 
@@ -126,11 +99,6 @@ fun PlayerContent(
         )
         Spacer(modifier = Modifier.height(24.dp))
 
-//        Text("Tracks:")
-
-//        state.tracks.forEach { track ->
-//            Text("${track.title} - ${track.artist}")
-//        }
 
     }
 }

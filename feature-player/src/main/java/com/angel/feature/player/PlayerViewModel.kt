@@ -10,7 +10,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -27,7 +26,6 @@ class PlayerViewModel @Inject constructor(
             repository.getTracks().collect { tracks ->
                 if (tracks.isNotEmpty()) {
                     tracksFlow.value = tracks
-                    player.setQueue(tracks)
                 }
             }
         }
@@ -53,8 +51,8 @@ class PlayerViewModel @Inject constructor(
         initialValue = PlayerUiState()
     )
 
-    fun playSample(tracks: List<Track>) {
-        player.setQueue(tracks)
+    fun playTrack(index: Int) {
+        player.setQueue(tracksFlow.value, index)
     }
 
     fun playPause() {

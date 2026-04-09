@@ -17,7 +17,7 @@ import javax.inject.Singleton
 object DataModule {
     @Provides
     @Singleton
-    fun provideContextResolver(
+    fun provideContentResolver(
         @ApplicationContext context: Context
     ): ContentResolver = context.contentResolver
 
