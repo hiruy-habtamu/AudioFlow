@@ -30,6 +30,9 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.android)
 
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.common)
+
     implementation(libs.kotlinx.coroutines.core)
     implementation(platform(libs.androidx.compose.bom))
 
