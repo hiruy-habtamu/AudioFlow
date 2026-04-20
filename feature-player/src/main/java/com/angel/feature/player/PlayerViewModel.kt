@@ -6,12 +6,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import androidx.media3.session.MediaBrowser
+import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.SessionToken
+import com.angel.core.data.repository.TrackRepository
+import com.angel.core.player.service.MediaItemTree
 import com.angel.core.player.service.PlaybackService
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,12 +23,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val repository: TrackRepository
 ) : ViewModel() {
 
     private var browserFuture: ListenableFuture<MediaBrowser>? = null
@@ -39,11 +45,26 @@ class PlayerViewModel @Inject constructor(
     init {
         val sessionToken =
             SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        browserFuture = MediaBrowser.Builder(context, sessionToken).buildAsync()
+        browserFuture = MediaBrowser.Builder(context, sessionToken)
+            .setListener(object : MediaBrowser.Listener {
+                override fun onChildrenChanged(
+                    browser: MediaBrowser,
+                    parentId: String,
+                    itemCount: Int,
+                    params: MediaLibraryService.LibraryParams?
+                ) {
+                    if (parentId == MediaItemTree.ALL_SONGS_ID || parentId == MediaItemTree.ROOT_ID) {
+                        loadTracks()
+                    }
+                }
+            })
+            .buildAsync()
         browserFuture?.addListener({
             try {
                 val browser = browserFuture?.get() ?: return@addListener
                 setupPlayer(browser)
+                browser.subscribe(MediaItemTree.ROOT_ID, null)
+                browser.subscribe(MediaItemTree.ALL_SONGS_ID, null)
                 loadTracks()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -102,25 +123,37 @@ class PlayerViewModel @Inject constructor(
 
     fun loadTracks() {
         viewModelScope.launch {
+            // Tell the repository to scan for tracks
+            repository.refresh()
+            
             val browser = browser ?: return@launch
-            val root = browser.getLibraryRoot(null).get().value ?: return@launch
-            val children = browser.getChildren(
-                root.mediaId, 0, Int.MAX_VALUE, null
-            ).get().value
-                ?: return@launch
 
-            val allSongsFolder = children.find { it.mediaId == "[allSongsID]" }
-            val tracksItems = if (allSongsFolder != null) {
-                browser.getChildren(
-                    allSongsFolder.mediaId, 0, Int.MAX_VALUE, null
-                ).get().value
-                    ?: emptyList()
-            } else {
-                children
-            }
+            try {
+                val rootResult = withContext(Dispatchers.Main) {
+                    browser.getLibraryRoot(null)
+                }.get()
+                val root = rootResult.value ?: return@launch
+                
+                val childrenResult = withContext(Dispatchers.Main) {
+                    browser.getChildren(root.mediaId, 0, Int.MAX_VALUE, null)
+                }.get()
+                val children = childrenResult.value ?: return@launch
 
-            _uiState.update { state ->
-                state.copy(tracks = tracksItems.map { it.toTrack() })
+                val allSongsFolder = children.find { it.mediaId == MediaItemTree.ALL_SONGS_ID }
+                val tracksItems = if (allSongsFolder != null) {
+                    val folderChildrenResult = withContext(Dispatchers.Main) {
+                        browser.getChildren(allSongsFolder.mediaId, 0, Int.MAX_VALUE, null)
+                    }.get()
+                    folderChildrenResult.value ?: emptyList()
+                } else {
+                    children
+                }
+
+                _uiState.update { state ->
+                    state.copy(tracks = tracksItems.map { it.toTrack() })
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

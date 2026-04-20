@@ -5,9 +5,19 @@ import com.angel.core.data.datasource.MediaStoreDataSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.onStart
+
 class TrackRepositoryImpl(private val dataSource: MediaStoreDataSource) : TrackRepository {
+    private val refreshSignal = MutableSharedFlow<Unit>(replay = 1)
+
     override fun getTracks(): Flow<List<MediaStoreAudio>> = flow {
-        val tracks = dataSource.getAudioFiles()
-        emit(tracks)
+        refreshSignal.onStart { emit(Unit) }.collect {
+            emit(dataSource.getAudioFiles())
+        }
+    }
+
+    override fun refresh() {
+        refreshSignal.tryEmit(Unit)
     }
 }

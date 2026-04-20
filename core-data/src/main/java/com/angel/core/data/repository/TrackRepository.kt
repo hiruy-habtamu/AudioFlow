@@ -5,4 +5,5 @@ import kotlinx.coroutines.flow.Flow
 
 interface TrackRepository {
     fun getTracks(): Flow<List<MediaStoreAudio>>
+    fun refresh()
 }
