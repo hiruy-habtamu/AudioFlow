@@ -1,28 +1,31 @@
 package com.angel.feature.player
 
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.*
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.angel.core.model.Track
 
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
-
     val state by viewModel.uiState.collectAsState()
 
     PlayerContent(
@@ -45,84 +48,151 @@ fun PlayerContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 24.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = state.currentTrack?.title ?: "No Track",
-            style = MaterialTheme.typography.headlineMedium
-        )
-        Text(
-            text = state.currentTrack?.artist ?: "Unknown",
-            style = MaterialTheme.typography.headlineSmall
+        // Album Art
+        AsyncImage(
+            model = state.currentTrack?.artworkUri,
+            contentDescription = "Album Art",
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(16.dp)),
+            contentScale = ContentScale.Crop,
+            error = rememberVectorPainter(Icons.Rounded.PlayArrow),
+            placeholder = rememberVectorPainter(Icons.Rounded.PlayArrow)
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
+        // Track Info
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
         ) {
-            Button(onClick = onPrevious) {
-                Text("⏮")
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-            Button(onClick = onPlayPause) {
-                Text(if (state.isPlaying) "⏸" else "▶️")
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Button(onClick = onNext) {
-                Text("⏭")
-            }
+            Text(
+                text = state.currentTrack?.title ?: "Not Playing",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = state.currentTrack?.artist ?: "Unknown Artist",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Controls and Progress
+        Column(modifier = Modifier.fillMaxWidth()) {
+            val duration = state.duration
+            val position = state.position
 
+            Slider(
+                value = if (duration > 0) position.toFloat() / duration else 0f,
+                onValueChange = { progress ->
+                    onSeek((progress * duration).toLong())
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            )
 
-        val duration = state.currentTrack?.duration ?: 0L
-        val position = state.position
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatTime(position),
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Text(
+                    text = formatTime(duration),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
 
-        Slider(
-            value = if (duration > 0) position.toFloat() / duration else 0f,
-            onValueChange = { progress ->
-                val newPosition = (progress * duration).toLong()
-                onSeek(newPosition)
-            },
-            modifier = Modifier
-                .fillMaxWidth(0.67f)
-                .padding(horizontal = 10.dp)
-        )
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Text(
-            text = "${position / 1000}s / ${duration / 1000}s"
-        )
-        Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onPrevious,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Previous",
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
 
+                FilledIconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(72.dp),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Icon(
+                        imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = if (state.isPlaying) "Pause" else "Play",
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
 
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next",
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
+        }
     }
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun PlayerContentPreview() {
     val fakeState = PlayerUiState(
-        currentTrack = com.angel.core.model.Track(
+        currentTrack = Track(
             id = "1",
-            title = "Sample Song",
-            artist = "Sample Artist",
+            title = "Midnight City",
+            artist = "M83",
             uri = "",
-            duration = 5000
+            duration = 243000
         ),
         isPlaying = true,
-        position = 2000
+        position = 120000,
+        duration = 243000
     )
 
-    PlayerContent(
-        state = fakeState,
-        onPlayPause = {},
-        onNext = {},
-        onPrevious = {},
-        onSeek = {}
-    )
+    MaterialTheme {
+        PlayerContent(
+            state = fakeState,
+            onPlayPause = {},
+            onNext = {},
+            onPrevious = {},
+            onSeek = {}
+        )
+    }
 }

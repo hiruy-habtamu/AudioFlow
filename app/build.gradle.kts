@@ -43,6 +43,12 @@ dependencies {
     implementation(project(":core-player"))
     implementation(project(":feature-player"))
     implementation(project(":core-model"))
+    implementation(project(":core-data"))
+
+
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.common)
+    implementation (libs.androidx.media3.session)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

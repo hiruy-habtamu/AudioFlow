@@ -1,78 +1,167 @@
 package com.angel.feature.player
 
+import android.content.ComponentName
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.angel.core.data.repository.TrackRepository
-import com.angel.core.model.PlaybackState
-import com.angel.core.model.Track
-import com.angel.core.player.AudioPlayer
+import androidx.media3.common.Player
+import androidx.media3.session.MediaBrowser
+import androidx.media3.session.SessionToken
+import com.angel.core.player.service.PlaybackService
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    private val player: AudioPlayer,
-    private val repository: TrackRepository
+    @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
-    fun loadTracks() {
-        viewModelScope.launch {
-            repository.getTracks().collect { tracks ->
-                if (tracks.isNotEmpty()) {
-                    tracksFlow.value = tracks
+    private var browserFuture: ListenableFuture<MediaBrowser>? = null
+    private val browser: MediaBrowser?
+        get() = if (browserFuture?.isDone == true) browserFuture?.get() else null
+
+    private val _uiState = MutableStateFlow(PlayerUiState())
+    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+
+    private var progressJob: Job? = null
+
+    init {
+        val sessionToken =
+            SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        browserFuture = MediaBrowser.Builder(context, sessionToken).buildAsync()
+        browserFuture?.addListener({
+            try {
+                val browser = browserFuture?.get() ?: return@addListener
+                setupPlayer(browser)
+                loadTracks()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }, MoreExecutors.directExecutor())
+    }
+
+    private fun setupPlayer(player: Player) {
+        player.addListener(object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (events.containsAny(
+                        Player.EVENT_MEDIA_ITEM_TRANSITION,
+                        Player.EVENT_PLAYBACK_STATE_CHANGED,
+                        Player.EVENT_PLAY_WHEN_READY_CHANGED
+                    )
+                ) {
+                    updateState(player)
                 }
+            }
+        })
+        updateState(player)
+    }
+
+    private fun updateState(player: Player) {
+        val currentMediaItem = player.currentMediaItem
+        _uiState.update {
+            it.copy(
+                currentTrack = currentMediaItem?.toTrack(),
+                isPlaying = player.isPlaying,
+                duration = player.duration.coerceAtLeast(0L)
+            )
+        }
+
+        if (player.isPlaying) {
+            startProgressUpdate()
+        } else {
+            stopProgressUpdate()
+        }
+    }
+
+    private fun startProgressUpdate() {
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch {
+            while (true) {
+                browser?.let { browser ->
+                    _uiState.update { it.copy(position = browser.currentPosition) }
+                }
+                delay(1000)
             }
         }
     }
 
-    private val tracksFlow = MutableStateFlow<List<Track>>(emptyList())
+    private fun stopProgressUpdate() {
+        progressJob?.cancel()
+    }
 
-    val uiState: StateFlow<PlayerUiState> = combine(
-        player.currentTrack,
-        player.playbackState,
-        player.currentPosition,
-        tracksFlow
-    ) { track, state, position, tracks ->
-        PlayerUiState(
-            currentTrack = track,
-            isPlaying = state == PlaybackState.PLAYING,
-            position = position,
-            tracks = tracks
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = PlayerUiState()
-    )
+    fun loadTracks() {
+        viewModelScope.launch {
+            val browser = browser ?: return@launch
+            val root = browser.getLibraryRoot(null).get().value ?: return@launch
+            val children = browser.getChildren(
+                root.mediaId, 0, Int.MAX_VALUE, null
+            ).get().value
+                ?: return@launch
+
+            val allSongsFolder = children.find { it.mediaId == "[allSongsID]" }
+            val tracksItems = if (allSongsFolder != null) {
+                browser.getChildren(
+                    allSongsFolder.mediaId, 0, Int.MAX_VALUE, null
+                ).get().value
+                    ?: emptyList()
+            } else {
+                children
+            }
+
+            _uiState.update { state ->
+                state.copy(tracks = tracksItems.map { it.toTrack() })
+            }
+        }
+    }
 
     fun playTrack(index: Int) {
-        player.setQueue(tracksFlow.value, index)
+        val browser = browser ?: return
+        val tracks = _uiState.value.tracks
+        if (index !in tracks.indices) return
+
+        val mediaItems = tracks.map { it.toMediaItem() }
+        browser.setMediaItems(mediaItems, index, 0L)
+        browser.prepare()
+        browser.play()
     }
 
     fun playPause() {
-
-        if (player.playbackState.value == PlaybackState.PLAYING) {
-            player.pause()
+        val browser = browser ?: return
+        if (browser.isPlaying) {
+            browser.pause()
         } else {
-            player.resume()
+            browser.play()
         }
     }
 
     fun next() {
-        player.playNext()
+        browser?.seekToNext()
     }
 
     fun previous() {
-        player.playPrevious()
+        browser?.seekToPrevious()
     }
 
     fun seek(position: Long) {
-        player.seekTo(position)
+        browser?.seekTo(position)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        browserFuture?.let {
+            MediaBrowser.releaseFuture(it)
+        }
     }
 }
+

@@ -5,6 +5,12 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <permission
+        android:name="com.angel.audioflow.BIND_PLAYBACK_SERVICE"
+        android:protectionLevel="signature" />
 
     <application
         android:name=".AudioFlowApp"
@@ -17,13 +23,25 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AudioFlow">
 
+        <service
+            android:name="com.angel.core.player.service.PlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback"
+            android:permission="com.angel.audioflow.BIND_PLAYBACK_SERVICE">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.AudioFlow">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
+                <action android:name="androidx.media3.session.MediaSessionService"/>
+                <action android:name="android.media.browse.MediaBrowserService"/>
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

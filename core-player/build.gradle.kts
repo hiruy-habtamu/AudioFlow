@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.ksp)
-
+    alias(libs.plugins.hilt.android)
 }
 
 android {
@@ -26,12 +26,15 @@ kotlin {
 dependencies {
 
     implementation(project(":core-model"))
+    implementation(project(":core-data"))
+
 
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.android)
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.common)
+    implementation (libs.androidx.media3.session)
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(platform(libs.androidx.compose.bom))
